@@ -1,0 +1,13 @@
+version: "3.5"
+
+services:
+  app:
+    container_name: express-app
+    image: express-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base      
+    ports:
+      - "${PORT}:${PORT}"
+   

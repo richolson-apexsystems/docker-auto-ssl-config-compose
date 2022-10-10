@@ -1,0 +1,59 @@
+version: "3.5"
+
+services:
+    # setup nginx proxy server
+    nginx-proxy:
+        container_name: nginx-proxy
+        image: nginxproxy/nginx-proxy
+        restart: unless-stopped
+        ports:
+            - 80:80
+            - 443:443
+        volumes:
+          - /var/run/docker.sock:/tmp/docker.sock:ro
+          - certs:/etc/nginx/certs:ro
+          - vhostd:/etc/nginx/vhost.d
+          - html:/usr/share/nginx/html
+          - acme:/etc/acme.sh   
+        labels:
+          - com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy  
+        environment:
+            DEFAULT_EMAIL: rich@zenzig.com
+        logging:
+            options:
+                max-size: "10m"
+                max-file: "3"
+    # use nginx-proxy helper to generate letsencrypt cert for domain were using
+    nginx-proxy-acme:
+        container_name: nginx-proxy-acme
+        image: nginxproxy/acme-companion
+        restart: unless-stopped
+        volumes:
+          - certs:/etc/nginx/certs:rw
+          - vhostd:/etc/nginx/vhost.d
+          - html:/usr/share/nginx/html
+          - /var/run/docker.sock:/var/run/docker.sock:ro
+        environment:
+            DEFAULT_EMAIL: rich@zenzig.com
+            NGINX_PROXY_CONTAINER: nginx-proxy
+    # setup application we want to proxy, in this case image we created for express-app on port 3000 
+    express-app:
+        container_name: express-app
+        image: express-app
+        expose:
+            - "3000"
+        environment:
+            VIRTUAL_HOST: docker2.zenzig.com
+            LETSENCRYPT_HOST: docker2.zenzig.com
+            VIRTUAL_PORT: 3000
+            LETSENCRYPT_EMAIL: rich@zenzig.com
+        depends_on:
+          - nginx-proxy
+          - nginx-proxy-acme    
+# define volume labels for volumes used above    
+volumes:
+  certs:
+  html:
+  vhostd:
+  acme:
+
